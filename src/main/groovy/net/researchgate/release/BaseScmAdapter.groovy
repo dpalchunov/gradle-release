@@ -34,4 +34,7 @@ abstract class BaseScmAdapter extends PluginHelper {
     abstract void commit(String message)
 
     abstract void revert()
+
+    abstract void createBranch()
+
 }

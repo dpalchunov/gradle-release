@@ -62,6 +62,9 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
                     'preTagCommit',
                     //  8. (SCM Plugin) Create tag of release.
                     'createReleaseTag',
+
+                    //  8.1 (SCM Plugin) Create stable release branch.
+                    'createStableBranch',
                     //  9. (This Plugin) Update version to next version.
                     'updateVersion',
                     // 10. (This Plugin) Commit version update.
@@ -94,12 +97,21 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
         project.task('runBuildTasks', group: RELEASE_GROUP, description: 'Runs the build process in a separate gradle run.', type: GradleBuild) {
             startParameter = project.getGradle().startParameter.newInstance()
 
-            tasks = [
-                'beforeReleaseBuild',
-                'build',
-                'afterReleaseBuild'
-            ]
+
+            if (extension.skipBuild) {
+                tasks = []
+            }  else {
+                tasks = [
+                        'beforeReleaseBuild',
+                        'build',
+                        'afterReleaseBuild'
+                ]
+            }
+
         }
+
+        project.task('createStableBranch', group: RELEASE_GROUP,
+                description: 'Creates stable release branch for hotfixes.') << this.&createStableBranch
 
         project.task('beforeReleaseBuild', group: RELEASE_GROUP, description: 'Runs immediately before the build when doing a release') {}
         project.task('afterReleaseBuild', group: RELEASE_GROUP, description: 'Runs immediately after the build when doing a release') {}
@@ -253,12 +265,19 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
         scmAdapter.commit(message)
     }
 
+    def createStableBranch() {
+        scmAdapter.createBranch()
+    }
 
     def checkPropertiesFile() {
         File propertiesFile = findPropertiesFile()
-
         Properties properties = new Properties()
-        propertiesFile.withReader { properties.load(it) }
+        FileReader r = new FileReader(propertiesFile);
+        try {
+            properties.load(r);
+        } finally {
+            r.close();
+        }
 
         assert properties.version, "[$propertiesFile.canonicalPath] contains no 'version' property"
         assert extension.versionPatterns.keySet().any { (properties.version =~ it).find() },
@@ -271,9 +290,9 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
 
         try {
             // test to make sure the version property is in the correct version=[version] format.
-            project.ant.replace(file: propertiesFile, token: "version=${project.version}", value: "version=${project.version}", failOnNoReplacements: true, preserveLastModified: true)
-        } catch (BuildException be) {
-            throw new GradleException("Unable to update version property. Please check file permissions, and ensure property is in \"version=${project.version}\" format.", be)
+            amendProperty("version",project.version.toString(),false);
+        } catch (GradleException ge) {
+            throw new GradleException("Unable to update version property. Please check file permissions, and ensure property is in \"version=${project.version}\" format.", ge)
         }
     }
 

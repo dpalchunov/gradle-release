@@ -112,6 +112,22 @@ class PluginHelper {
         tagName
     }
 
+    String stableReleaseBranchName() {
+        def branchName
+        if (extension.branchTemplate) {
+            def engine = new SimpleTemplateEngine()
+            def binding = [
+                    "version": project.version,
+                    "name"   : project.rootProject.name
+            ]
+            branchName = engine.createTemplate(extension.branchTemplate).make(binding).toString()
+        } else {
+            branchName = "${project.version}_stable_release_branch"
+        }
+
+        branchName
+    }
+
     String findProperty(String key, String defaultVal = "") {
         System.properties[key] ?: project.properties[key] ?: defaultVal
     }
@@ -132,16 +148,80 @@ class PluginHelper {
                 subProject.version = newVersion
             }
             def versionProperties = extension.versionProperties + 'version'
-            def propFile = findPropertiesFile()
             versionProperties.each { prop ->
                 try {
-                    project.ant.propertyfile(file: propFile) {
-                        entry(key: prop, value: project.version)
-                    }
+                    amendProperty(prop.toString(),project.version.toString());
                 } catch (BuildException be) {
                     throw new GradleException('Unable to update version property.', be)
                 }
             }
+        }
+    }
+
+    void amendProperty(String k,String newValue, Boolean createIfNotExists) {
+        try{
+
+            File file = findPropertiesFile();
+            Properties props = new Properties()  {
+                @Override
+                public synchronized Enumeration<Object> keys() {
+                    return Collections.enumeration(new TreeSet<Object>(super.keySet()))
+                }
+            }
+            DataInputStream r = file.newDataInputStream();
+            try {
+                props.load(r);
+            }catch(IOException be){
+                throw new GradleException("Unable to read property file", be);
+            } finally {
+                r.close();
+            }
+            String oldValue = props.getProperty(k);
+            if (!createIfNotExists && (oldValue == null)) {
+                throw new GradleException("Could not amend ${k} property. No such property in property file.");
+            }
+
+
+            if (oldValue != newValue) {
+                props.setProperty(k, newValue);
+                props.sort();
+                BufferedWriter w = file.newWriter();
+                try {
+                    props.store(w, null)
+                }catch(IOException be){
+                    throw new GradleException("Unable write to property file", be);
+                } finally {
+                    w.close();
+                }
+            }
+
+        }catch(IOException be){
+            throw new GradleException("Unable update property file", be);
+        }
+    }
+
+    void amendProperty(String k,String v) {
+        amendProperty(k,v,true)
+    }
+
+
+    /**
+     * Updates properties file (<code>gradle.properties</code> by default) with new version specified.
+     * If configured in plugin convention then updates other properties in file additionally to <code>version</code> property
+     *
+     * @param createStableReleaseBranch createStableReleaseBranch to store in the file
+     */
+    void updateCreateStableReleaseBranchProperty(Boolean createStableReleaseBranch) {
+        def oldValue = extension.git.createStableReleaseBranch
+        if (oldValue != createStableReleaseBranch) {
+            amendProperty('createStableReleaseBranch', createStableReleaseBranch.toString());
+        }
+    }
+
+    void changeRequireBranch(String branch) {
+        def oldValue = extension.git.requireBranch
+        if (oldValue != branch) {
+            amendProperty('requireBranch', branch);
         }
     }
 

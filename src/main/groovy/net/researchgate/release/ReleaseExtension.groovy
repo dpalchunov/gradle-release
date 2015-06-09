@@ -18,6 +18,8 @@ import java.util.regex.Pattern
 
 class ReleaseExtension {
 
+    boolean skipBuild = false
+
     boolean failOnCommitNeeded = true
 
     boolean failOnPublishNeeded = true
@@ -43,6 +45,8 @@ class ReleaseExtension {
      */
     String tagTemplate
 
+    String branchTemplate
+
     String versionPropertyFile = 'gradle.properties'
 
     List versionProperties = []
@@ -50,6 +54,10 @@ class ReleaseExtension {
     def versionPatterns = [
         // Increments last number: "2.5-SNAPSHOT" => "2.6-SNAPSHOT"
         /(\d+)([^\d]*$)/: { Matcher m, Project p -> m.replaceAll("${(m[0][1] as int) + 1}${m[0][2]}") }
+    ]
+
+    def versionToHotFixVersionPatterns = [
+        /(\d+\.\d+\.\d+)([^\d]*$)/: { Matcher m, Project p -> m.replaceAll("${m[0][1]}.1${m[0][2]}") }
     ]
 
     def scmAdapters = [

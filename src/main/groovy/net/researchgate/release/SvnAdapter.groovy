@@ -161,7 +161,12 @@ class SvnAdapter extends BaseScmAdapter {
         svnExec(['revert', findPropertiesFile().name], errorMessage: 'Error reverting changes made by the release plugin.', errorPatterns: [ERROR])
     }
 
-    /**
+    @Override
+    void createBranch() {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+/**
      * Adds the executable and optional also username/password
      *
      * @param options

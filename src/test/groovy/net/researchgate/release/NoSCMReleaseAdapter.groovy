@@ -57,4 +57,10 @@ class NoSCMReleaseAdapter extends BaseScmAdapter {
     void revert() {
         //To change body of implemented methods use File | Settings | File Templates.
     }
+
+    @Override
+    void createBranch() {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
 }

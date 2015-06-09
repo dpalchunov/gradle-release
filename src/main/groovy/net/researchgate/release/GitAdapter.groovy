@@ -28,6 +28,8 @@ class GitAdapter extends BaseScmAdapter {
         String requireBranch = 'master'
         def pushToRemote = 'origin' // needs to be def as can be boolean or string
         boolean pushToCurrentBranch = false
+        boolean createStableReleaseBranch = false
+
     }
 
     GitAdapter(Project project) {
@@ -112,9 +114,71 @@ class GitAdapter extends BaseScmAdapter {
         }
     }
 
+    void commitPushToCur(String message) {
+        exec(['git', 'commit', '-a', '-m', message])
+        if (shouldPush()) {
+            def branch
+            branch = gitCurrentBranch()
+            exec(['git', 'push', '--porcelain', extension.git.pushToRemote, branch], errorMessage: 'Failed to push to remote', errorPatterns: ['[rejected]', 'error: ', 'fatal: '])
+        }
+    }
+
     @Override
     void revert() {
-        exec(['git', 'checkout', findPropertiesFile().name], errorMessage: 'Error reverting changes made by the release plugin.')
+        exec(['git', 'checkout', findPropertiesFile().name], errorMessage: 'Error reverting changes made by the release plugin. Created tag and release branch should be reverted manually.')
+    }
+
+    @Override
+    void createBranch() {
+        if (extension.git.createStableReleaseBranch) {
+            def stableBranch = stableReleaseBranchName()
+            def currentbranch = gitCurrentBranch()
+            exec(['git', 'branch', stableBranch], errorMessage: 'Error creating stable release branch [$stableBranch] by the release plugin.',errorPatterns: ['error: ', 'fatal: '])
+            checkout(stableBranch);
+            changeVersionToHotFixVersion();
+            changeRequireBranch(stableBranch);
+            updateCreateStableReleaseBranchProperty(false);
+            commitPushToCur('branch configured to be a stable release branch');
+            checkout(currentbranch);
+        }
+    }
+
+    void changeVersionToHotFixVersion() {
+        def version = project.version.toString()
+        Map<String, Closure> patterns = extension.versionToHotFixVersionPatterns
+
+        for (entry in patterns) {
+
+            String pattern = entry.key
+            //noinspection GroovyUnusedAssignment
+            Closure handler = entry.value
+            Matcher matcher = version =~ pattern
+
+            if (matcher.find()) {
+                String nextVersion = handler(matcher, project)
+                if (project.properties['usesSnapshot']) {
+                    nextVersion += '-SNAPSHOT'
+                }
+                def ver = getHotFixVersion(nextVersion)
+                amendProperty('version',ver)
+                return
+            }
+        }
+
+        throw new GradleException("Failed to increase version [$version] - unknown pattern")
+    }
+
+    String getHotFixVersion(String candidateVersion) {
+
+        if (useAutomaticVersion()) {
+            return candidateVersion
+        }
+
+        return readLine("This hotfix version:", candidateVersion ?: candidateVersion)
+    }
+
+    void checkout(String branch) {
+        exec(['git', 'checkout', branch], errorMessage: 'Error checkout branch [$branch] by the release plugin.',errorPatterns: ['error: ', 'fatal: '],failOnStderr: false)
     }
 
     private boolean shouldPush() {

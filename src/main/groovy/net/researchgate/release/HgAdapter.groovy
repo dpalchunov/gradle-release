@@ -94,6 +94,12 @@ class HgAdapter extends BaseScmAdapter {
         exec(['hg', 'revert', findPropertiesFile().name], errorMessage: 'Error reverting changes made by the release plugin.', errorPatterns: [ERROR])
     }
 
+    @Override
+    void createBranch() {
+        //To change body of implemented methods use File | Settings | File Templates.
+    }
+
+
     private String hgCurrentBranch() {
         exec(['hg', 'branch']).readLines()[0]
     }
