@@ -138,7 +138,8 @@ class GitAdapter extends BaseScmAdapter {
             changeVersionToHotFixVersion();
             changeRequireBranch(stableBranch);
             updateCreateStableReleaseBranchProperty(false);
-            commitPushToCur('branch configured to be a stable release branch');
+            def message = extension.stableBranchCommitMessage
+            commitPushToCur(message);
             checkout(currentbranch);
         }
     }
