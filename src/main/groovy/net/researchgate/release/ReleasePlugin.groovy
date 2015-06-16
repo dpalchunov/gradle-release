@@ -96,18 +96,11 @@ class ReleasePlugin extends PluginHelper implements Plugin<Project> {
             description: 'Creates a tag in SCM for the current (un-snapshotted) version.') << this.&commitTag
         project.task('runBuildTasks', group: RELEASE_GROUP, description: 'Runs the build process in a separate gradle run.', type: GradleBuild) {
             startParameter = project.getGradle().startParameter.newInstance()
-
-
-            if (extension.skipBuild) {
-                tasks = []
-            }  else {
                 tasks = [
                         'beforeReleaseBuild',
                         'build',
                         'afterReleaseBuild'
                 ]
-            }
-
         }
 
         project.task('createStableBranch', group: RELEASE_GROUP,

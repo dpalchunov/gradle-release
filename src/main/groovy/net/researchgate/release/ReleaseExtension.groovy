@@ -18,8 +18,6 @@ import java.util.regex.Pattern
 
 class ReleaseExtension {
 
-    boolean skipBuild = false
-
     boolean failOnCommitNeeded = true
 
     boolean failOnPublishNeeded = true
